@@ -1,4 +1,4 @@
-# ====================== Puxando dados da API do SIDRA - PIM-PF
+# ====================== Puxando dados da API do SIDRA - PMS
 library(sidrar)
 library(zoo)
 library(writexl)
@@ -11,63 +11,50 @@ diretorio <- choose.dir()
 setwd(diretorio)
 getwd()
 
-# ==== Coletando dados da tabela 8887 - PIM-PF Atividades
-tabela_8887 <- get_sidra(8887, api = "/t/8887/n1/all/v/12607/p/last%2041/c543/129278,129283,129300,129301,129305/d/v12607%205")
-View(tabela_8887)
+# ==== Coletando dados da tabela 8688 - PMS
 
-# Selecionando colunas relevantes
-tabela_8887 <- tabela_8887 %>%
-  select(
-    data = "Mês (Código)",
-    variable = "Grandes categorias econômicas",
-    value = "Valor"
-  ) %>%
-  as_tibble()
+# Definindo o período dinâmico para a coleta de dados
+data_inicio <- "202201"
+data_fim <- format(Sys.Date(), "%Y%m")
+periodo_completo <- paste0(data_inicio, "-", data_fim)
 
-View(tabela_8887)
+# Informar o usuário qual período está sendo usado
+print(paste("Buscando dados para o período:", periodo_completo))
 
-pimpf_8887 <- tabela_8887 %>%
-  mutate(
-    data = ym(data)
-  ) %>%
-  pivot_wider(
-    names_from = variable,
-    values_from = value
-  )
-
-View(pimpf_8887)
-
-# Transformando tabela 8887 para formato transposto (datas como colunas)
-pimpf_8887_transposta <- tabela_8887 %>%
-  mutate(
-    data = ym(data)
-  ) %>%
-  pivot_wider(
-    names_from = data,
-    values_from = value
-  )
-
-View(pimpf_8887_transposta)
-
-
-# ==== Coletando dados da tabela 8888 - PIM-PF Atividades
-tabela_8888 <- get_sidra(8888,
-  api = "/t/8888/n1/all/v/12607/p/last%2041/c544/all/d/v12607%205"
+lista_de_classificacoes_total <- list(
+  c11046 = 56726
 )
-View(tabela_8888)
+
+# Fazer a chamada à API com o período dinâmico e fechado
+tabela_8688 <- get_sidra(
+  x = 8688, # Código da tabela (PMS - Índice de volume)
+  period = periodo_completo, # Período dinâmico que criamos
+  variable = 7168, # Variável "Índice de volume de serviços (2014=100)"
+)
+
+View(tabela_8688)
+
 
 # Selecionando colunas relevantes
-tabela_8888 <- tabela_8888 %>%
+tabela_8688 <- tabela_8688 %>%
   select(
     data = "Mês (Código)",
-    variable = "Seções e atividades industriais (CNAE 2.0)",
+    variable = "Atividades de serviços",
+    tipos = "Tipos de índice (Código)",
     value = "Valor"
   ) %>%
   as_tibble()
 
-View(tabela_8888)
+View(tabela_8688)
 
-pimpf_8888 <- tabela_8888 %>%
+head(tabela_8688)
+
+# Removendo o índice na coluna "tipos" irrelevante (56725)
+tabela_8688 <- tabela_8688 %>%
+  filter(tipos != 56725)
+
+# Define a coluna data propriamente e coloca os itens como colunas
+pms_8688 <- tabela_8688 %>%
   mutate(
     data = ym(data)
   ) %>%
@@ -76,10 +63,10 @@ pimpf_8888 <- tabela_8888 %>%
     values_from = value
   )
 
-View(pimpf_8888)
+View(pms_8688)
 
-# Transformando tabela 8888 para formato transposto (datas como colunas)
-pimpf_8888_transposta <- tabela_8888 %>%
+# Transformando tabela 8688 para formato transposto (datas como colunas)
+pms_8688_transposta <- tabela_8688 %>%
   mutate(
     data = ym(data)
   ) %>%
@@ -88,15 +75,17 @@ pimpf_8888_transposta <- tabela_8888 %>%
     values_from = value
   )
 
-View(pimpf_8888_transposta)
+# Omitido valores NA para evitar problemas na exportação
+pms_8688_transposta <- na.omit(pms_8688_transposta)
 
 
 # Exportando para Excel
 timestamp <- format(Sys.time(), "%Y%m%d")
 write_xlsx(
   list(
-    "8887" = pimpf_8887_transposta,
-    "8888" = pimpf_8888_transposta
+    "8688" = pms_8688_transposta
   ),
-  path = paste0(timestamp, "_PIM_PF.xlsx")
+  path = paste0(timestamp, "_PMS.xlsx")
 )
+
+getwd()
